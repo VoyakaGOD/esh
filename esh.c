@@ -5,9 +5,62 @@
 #include <sys/wait.h>
 #include <limits.h>
 #include <readline/readline.h>
+#include <fcntl.h>
 
 #define ESH_MAX_ARGS 64
 #define ESH_MAX_INPUT 1024
+
+typedef struct
+{
+    char *args[ESH_MAX_ARGS];
+    int is_out_append;
+    int is_err_append;
+    char *out_file;
+    char *err_file;
+} command_t;
+
+void parse_command(command_t *cmd, char **args)
+{
+    int i = 0;
+    int j = 0;
+
+    cmd->out_file = NULL;
+    cmd->err_file = NULL;
+
+    while (args[i])
+    {
+        if(strcmp(args[i], ">") == 0)
+        {
+            cmd->out_file = args[i + 1];
+            cmd->is_out_append = 0;
+            i += 2;
+        }
+        else if(strcmp(args[i], ">>") == 0)
+        {
+            cmd->out_file = args[i + 1];
+            cmd->is_out_append = 1;
+            i += 2;
+        }
+        else if(strcmp(args[i], "!>") == 0)
+        {
+            cmd->err_file = args[i + 1];
+            cmd->is_err_append = 0;
+            i += 2;
+        }
+        else if (strcmp(args[i], "!>>") == 0)
+        {
+            cmd->err_file = args[i + 1];
+            cmd->is_err_append = 1;
+            i += 2;
+        }
+        else
+        {
+            cmd->args[j++] = args[i++];
+        }
+    }
+
+    cmd->args[j] = NULL;
+}
 
 void parse_input(char *input, char **args)
 {
@@ -17,7 +70,7 @@ void parse_input(char *input, char **args)
 
     for (char *ptr = input; ; ptr++)
     {
-        if (*ptr == '"' )
+        if (*ptr == '"')
         {
             in_quotes = !in_quotes;
             if(in_quotes)
@@ -58,22 +111,24 @@ void parse_input(char *input, char **args)
 
 int main()
 {
-    // char input[ESH_MAX_INPUT];
     char *input = NULL;
     char *args[ESH_MAX_ARGS];
     char cwd[PATH_MAX];
     int counter = 0;
     char prompt[PATH_MAX + 128];
+    command_t cmd;
+    int debug_mode;
 
     while(1)
     {
         if (getcwd(cwd, sizeof(cwd)) != NULL)
-            snprintf(prompt, sizeof(prompt), "esh(%d):%s> ", counter, cwd);
+            snprintf(prompt, sizeof(prompt), "esh(%d):%s>%s ", counter, cwd, debug_mode ? ">" : "");
         else
-            snprintf(prompt, sizeof(prompt), "esh(%d):[getcwd failed]> ", counter);
+            snprintf(prompt, sizeof(prompt), "esh(%d):[getcwd failed]>%s ", counter, debug_mode ? ">" : "");
         fflush(stdout);
         input = readline(prompt);
         parse_input(input, args);
+        parse_command(&cmd, args);
         counter++;
 
         if (args[0] == NULL)
@@ -82,11 +137,42 @@ int main()
         if(strcmp(args[0], "exit") == 0)
             break;
 
+        if(strcmp(args[0], "edbg") == 0)
+        {
+            debug_mode = !debug_mode;
+            printf("debug_mode: %s\n", debug_mode ? "enabled" : "disabled");
+            continue;
+        }
+
         pid_t pid = fork();
 
-        if (pid == 0)
+        if(pid == 0)
         {
-            execvp(args[0], args);
+            if (cmd.out_file)
+            {
+                int fd = open(
+                    cmd.out_file,
+                    O_WRONLY | O_CREAT | (cmd.is_out_append ? O_APPEND : O_TRUNC),
+                    0644
+                );
+
+                dup2(fd, STDOUT_FILENO);
+                close(fd);
+            }
+
+            if (cmd.err_file)
+            {
+                int fd = open(
+                    cmd.err_file,
+                    O_WRONLY | O_CREAT | (cmd.is_err_append ? O_APPEND : O_TRUNC),
+                    0644
+                );
+
+                dup2(fd, STDERR_FILENO);
+                close(fd);
+            }
+
+            execvp(cmd.args[0], cmd.args);
             perror("exec failed");
             exit(1);
         }

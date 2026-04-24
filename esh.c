@@ -17,6 +17,7 @@ typedef struct
     int is_err_append;
     char *out_file;
     char *err_file;
+    int tilde_args[ESH_MAX_ARGS];
 } command_t;
 
 void parse_command(command_t *cmd, char **args)
@@ -109,10 +110,41 @@ void parse_input(char *input, char **args)
     args[i] = NULL;
 }
 
+void expand_tilde(char **args, int *is_heap)
+{
+    char *home = getenv("HOME");
+    if (!home)
+        return;
+
+    for(int i = 0; args[i]; i++)
+    {
+        is_heap[i] = 0;
+        if((args[i][0] == '~') && (args[i][1] == '\0'))
+        {
+            args[i] = home;
+        }
+        else if((args[i][0] == '~') && (args[i][1] == '/'))
+        {
+            char *buffer = malloc(strlen(home) + strlen(args[i]));
+            sprintf(buffer, "%s%s", home, args[i] + 1);
+            args[i] = buffer;
+            is_heap[i] = 1;
+        }
+    }
+}
+
+void release_args(char **args, int *is_heap)
+{
+    for(int i = 0; args[i]; i++)
+        if(is_heap[i])
+            free(args[i]);
+}
+
 int main()
 {
     char *input = NULL;
     char *args[ESH_MAX_ARGS];
+    int is_heap[ESH_MAX_ARGS];
     char cwd[PATH_MAX];
     int counter = 0;
     char prompt[PATH_MAX + 128];
@@ -128,6 +160,7 @@ int main()
         fflush(stdout);
         input = readline(prompt);
         parse_input(input, args);
+        expand_tilde(args, is_heap);
         parse_command(&cmd, args);
         counter++;
 
@@ -179,6 +212,7 @@ int main()
         else if (pid > 0)
         {
             wait(NULL);
+            release_args(args, is_heap);
         }
         else
         {

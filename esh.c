@@ -6,9 +6,11 @@
 #include <limits.h>
 #include <readline/readline.h>
 #include <fcntl.h>
+#include <readline/history.h>
 
 #define ESH_MAX_ARGS 64
 #define ESH_MAX_INPUT 1024
+#define ESH_HISTORY_LIMIT 1000
 
 typedef struct
 {
@@ -140,6 +142,17 @@ void release_args(char **args, int *is_heap)
             free(args[i]);
 }
 
+void print_history()
+{
+    HIST_ENTRY **list = history_list();
+
+    if (!list)
+        return;
+
+    for (int i = 0; list[i]; i++)
+        printf("%d %s\n", i + history_base, list[i]->line);
+}
+
 int main()
 {
     char *input = NULL;
@@ -150,6 +163,11 @@ int main()
     char prompt[PATH_MAX + 128];
     command_t cmd;
     int debug_mode;
+
+    char history_path[PATH_MAX + 32];
+    snprintf(history_path, sizeof(history_path), "%s/.esh_history", getenv("HOME"));
+    read_history(history_path);
+    stifle_history(ESH_HISTORY_LIMIT);
 
     while(1)
     {
@@ -167,13 +185,24 @@ int main()
         if (args[0] == NULL)
             continue;
 
+        add_history(input);
+
         if(strcmp(args[0], "exit") == 0)
+        {
+            write_history(history_path);
             break;
+        }
 
         if(strcmp(args[0], "edbg") == 0)
         {
             debug_mode = !debug_mode;
             printf("debug_mode: %s\n", debug_mode ? "enabled" : "disabled");
+            continue;
+        }
+
+        if(strcmp(args[0], "estory") == 0)
+        {
+            print_history();
             continue;
         }
 

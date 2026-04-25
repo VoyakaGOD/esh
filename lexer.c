@@ -163,13 +163,13 @@ token_t *tokenize_input(char *input)
                 word[j++] = input[i++];
             if(input[i] == '\0')
             {
-                perror("You should close quote");
+                fprintf(stderr, "You should close quote");
                 release_tokens(head);
                 return NULL;
             }
             if(j >= ESH_MAX_WORD_LEN)
             {
-                perror("Argument is too big");
+                fprintf(stderr, "Argument is too big");
                 release_tokens(head);
                 return NULL;
             }
@@ -179,7 +179,7 @@ token_t *tokenize_input(char *input)
 
         if(j >= ESH_MAX_WORD_LEN)
         {
-            perror("Argument is too big");
+            fprintf(stderr, "Argument is too big");
             release_tokens(head);
             return NULL;
         }

@@ -1,14 +1,3 @@
-// use pointers to token list content
-typedef struct command
-{
-    char **args;
-    int is_out_append;
-    int is_err_append;
-    char *out_file;
-    char *err_file;
-    struct command *next;
-    token_type_t separator;
-} command_t;
 
 int is_separator_token(token_type_t type)
 {
@@ -63,7 +52,7 @@ command_t *new_command(token_t *head, int count, token_type_t separator)
             cmd->is_out_append = (head->type == T_REDIR_OUT_2);
             if(!head->next)
             {
-                perror("No file name for output redirection");
+                fprintf(stderr, "No file name for output redirection");
                 free(cmd->args);
                 free(cmd);
                 return NULL;
@@ -73,7 +62,7 @@ command_t *new_command(token_t *head, int count, token_type_t separator)
 
             if(head->type != T_WORD)
             {
-                perror("Bad redirection target type");
+                fprintf(stderr, "Bad redirection target type");
                 free(cmd->args);
                 free(cmd);
                 return NULL;
@@ -87,7 +76,7 @@ command_t *new_command(token_t *head, int count, token_type_t separator)
             cmd->is_err_append = (head->type == T_REDIR_ERR_2);
             if(!head->next)
             {
-                perror("No file name for error redirection");
+                fprintf(stderr, "No file name for error redirection");
                 free(cmd->args);
                 free(cmd);
                 return NULL;
@@ -97,7 +86,7 @@ command_t *new_command(token_t *head, int count, token_type_t separator)
 
             if(head->type != T_WORD)
             {
-                perror("Bad redirection target type");
+                fprintf(stderr, "Bad redirection target type");
                 free(cmd->args);
                 free(cmd);
                 return NULL;

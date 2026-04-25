@@ -217,3 +217,39 @@ void print_token_list(token_t *head)
         printf("\n");
     }
 }
+
+void expand_tilde(token_t *head)
+{
+    char *home = getenv("HOME");
+    if (!home)
+        return;
+
+    while(head)
+    {
+        if((head->type != T_WORD) || (head->value[0] != '~'))
+        {
+            head = head->next;
+            continue;
+        }
+
+        if(head->value[1] == '\0')
+        {
+            free(head->value);
+            head->value = strdup(home);
+        }
+        else if(head->value[1] == '/')
+        {
+            char *buffer = (char *)malloc(strlen(home) + strlen(head->value));
+            if(!buffer)
+            {
+                perror("Can't allocate memory for [HOME] substitution");
+                exit(-4);
+            }
+            sprintf(buffer, "%s%s", home, head->value + 1);
+            free(head->value);
+            head->value = buffer;
+        }
+
+        head = head->next;
+    }
+}

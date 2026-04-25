@@ -11,6 +11,9 @@
 #define ESH_MAX_ARGS 64
 #define ESH_MAX_INPUT 1024
 #define ESH_HISTORY_LIMIT 1000
+#define ESH_MAX_WORD_LEN 1024
+
+#include "lexer.c"
 
 typedef struct
 {
@@ -19,7 +22,6 @@ typedef struct
     int is_err_append;
     char *out_file;
     char *err_file;
-    int tilde_args[ESH_MAX_ARGS];
 } command_t;
 
 void parse_command(command_t *cmd, char **args)
@@ -177,6 +179,9 @@ int main()
             snprintf(prompt, sizeof(prompt), "esh(%d):[getcwd failed]>%s ", counter, debug_mode ? ">" : "");
         fflush(stdout);
         input = readline(prompt);
+        token_t *tokens = tokenize_input(input);
+        if(debug_mode)
+            print_token_list(tokens);
         parse_input(input, args);
         expand_tilde(args, is_heap);
         parse_command(&cmd, args);
@@ -242,6 +247,7 @@ int main()
         {
             wait(NULL);
             release_args(args, is_heap);
+            release_tokens(tokens);
         }
         else
         {

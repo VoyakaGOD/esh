@@ -54,6 +54,12 @@ int main()
         );
 
         input = readline(context.prompt);
+        if(!input)
+        {
+            printf("exit\n");
+            input = "exit";
+        }
+
         tokens = tokenize_input(input);
         expand_tilde(tokens);
         sequence = parse_commands(tokens);

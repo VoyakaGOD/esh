@@ -11,18 +11,9 @@
 #define ESH_MAX_ARGS 64
 #define ESH_MAX_INPUT 1024
 #define ESH_HISTORY_LIMIT 1000
-#define ESH_MAX_WORD_LEN 1024
 
 #include "lexer.c"
-
-typedef struct
-{
-    char *args[ESH_MAX_ARGS];
-    int is_out_append;
-    int is_err_append;
-    char *out_file;
-    char *err_file;
-} command_t;
+#include "parser.c"
 
 void parse_command(command_t *cmd, char **args)
 {
@@ -164,6 +155,7 @@ int main()
     int counter = 0;
     char prompt[PATH_MAX + 128];
     command_t cmd;
+    cmd.args = (char **)malloc(ESH_MAX_ARGS * sizeof(char *));
     int debug_mode;
 
     char history_path[PATH_MAX + 32];
@@ -180,8 +172,12 @@ int main()
         fflush(stdout);
         input = readline(prompt);
         token_t *tokens = tokenize_input(input);
+        command_t *sequence = parse_commands(tokens);
         if(debug_mode)
+        {
             print_token_list(tokens);
+            print_command_list(sequence);
+        }
         parse_input(input, args);
         expand_tilde(args, is_heap);
         parse_command(&cmd, args);
@@ -247,6 +243,7 @@ int main()
         {
             wait(NULL);
             release_args(args, is_heap);
+            release_commands(sequence);
             release_tokens(tokens);
         }
         else

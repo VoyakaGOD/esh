@@ -52,7 +52,7 @@ command_t *new_command(token_t *head, int count, token_type_t separator)
             cmd->is_out_append = (head->type == T_REDIR_OUT_2);
             if(!head->next)
             {
-                fprintf(stderr, "No file name for output redirection");
+                fprintf(stderr, "No file name for output redirection\n");
                 free(cmd->args);
                 free(cmd);
                 return NULL;
@@ -62,7 +62,7 @@ command_t *new_command(token_t *head, int count, token_type_t separator)
 
             if(head->type != T_WORD)
             {
-                fprintf(stderr, "Bad redirection target type");
+                fprintf(stderr, "Bad redirection target type\n");
                 free(cmd->args);
                 free(cmd);
                 return NULL;
@@ -76,7 +76,7 @@ command_t *new_command(token_t *head, int count, token_type_t separator)
             cmd->is_err_append = (head->type == T_REDIR_ERR_2);
             if(!head->next)
             {
-                fprintf(stderr, "No file name for error redirection");
+                fprintf(stderr, "No file name for error redirection\n");
                 free(cmd->args);
                 free(cmd);
                 return NULL;
@@ -86,7 +86,7 @@ command_t *new_command(token_t *head, int count, token_type_t separator)
 
             if(head->type != T_WORD)
             {
-                fprintf(stderr, "Bad redirection target type");
+                fprintf(stderr, "Bad redirection target type\n");
                 free(cmd->args);
                 free(cmd);
                 return NULL;
@@ -102,6 +102,14 @@ command_t *new_command(token_t *head, int count, token_type_t separator)
         }
 
         head = head->next;
+    }
+
+    if(j == 0)
+    {
+        fprintf(stderr, "Empty command\n");
+        free(cmd->args);
+        free(cmd);
+        return NULL;
     }
 
     cmd->args[j] = NULL;

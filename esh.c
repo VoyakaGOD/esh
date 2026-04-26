@@ -7,13 +7,14 @@
 #include <readline/readline.h>
 #include <fcntl.h>
 
+#define ESH_HISTORY_LIMIT 1000
+#define ESH_HISTORY_FILE ".esh_history"
+#define ESH_PROMPT_EXTRA_LEN 128
+#define ESH_MAX_PIPELINE_LEN 64
+
 #include "lexer.c"
 #include "command.c"
 #include "parser.c"
-
-#define ESH_HISTORY_LIMIT 1000
-#define ESH_HISTORY_FILE "/.esh_history"
-#define ESH_PROMPT_EXTRA_LEN 128
 
 int main()
 {
@@ -24,6 +25,8 @@ int main()
     context_t context;
     context.counter = 0;
     context.debug_mode = 0;
+    context.cwd = NULL;
+    context.prompt = NULL;
     context.home = getenv("HOME");
     if(!context.home)
     {
@@ -31,16 +34,18 @@ int main()
         exit(-5);
     }
 
-    context.history_path = (char *)malloc(strlen(context.home) + strlen(ESH_HISTORY_FILE) + 1);
-    sprintf(context.history_path, "%s/.esh_history", context.home);
+    context.history_path = (char *)malloc(strlen(context.home) + strlen(ESH_HISTORY_FILE) + 2);
+    sprintf(context.history_path, "%s/%s", context.home, ESH_HISTORY_FILE);
     read_history(context.history_path);
     stifle_history(ESH_HISTORY_LIMIT);
 
     while(1)
     {
+        free(context.cwd);
         context.cwd = getcwd(NULL, 0);
         if(!context.cwd)
             context.cwd = strdup("[cwd]");
+        free(context.prompt);
         context.prompt = (char *)malloc(strlen(context.cwd) + ESH_PROMPT_EXTRA_LEN);
         if(!context.prompt)
             context.prompt = strdup("[prompt]");
@@ -74,19 +79,13 @@ int main()
 
         if (!sequence)
             continue;
-        context.counter++;
 
-        if(execute_if_builtin(sequence, &context))
-            continue;
-        int code = execute_command(sequence);
-        if(context.debug_mode)
-            printf("return code: %d\n", code);
+        execute_sequence(sequence, &context);
+        context.counter++;
 
         release_commands(sequence);
         release_tokens(tokens);
         free(input);
-        free(context.cwd);
-        free(context.prompt);
     }
 
     return 0;

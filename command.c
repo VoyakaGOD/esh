@@ -30,6 +30,7 @@ typedef struct pipe_context
     int fd_out;
 } pipe_context_t;
 
+// builtin top half
 int execute_if_builtin(command_t *cmd, context_t *context)
 {
     if(strcmp(cmd->args[0], "exit") == 0)
@@ -41,21 +42,33 @@ int execute_if_builtin(command_t *cmd, context_t *context)
     if(strcmp(cmd->args[0], "edbg") == 0)
     {
         context->debug_mode = !context->debug_mode;
-        printf("debug_mode: %s\n", context->debug_mode ? "enabled" : "disabled");
         return 1;
     }
 
     if(strcmp(cmd->args[0], "estory") == 0)
+        return 2;
+
+    return 0;
+}
+
+int execute_builtin_bottom_half(int id, command_t *cmd, context_t *context)
+{
+    switch (id)
     {
+    case 1:
+        printf("debug_mode: %s\n", context->debug_mode ? "enabled" : "disabled");
+        break;
+    case 2:
         HIST_ENTRY **list = history_list();
-
         if (!list)
+        {
+            fprintf(stderr, "Can't load estory\n");
             return 1;
-
+        }
         for (int i = 0; list[i]; i++)
             printf("%d %s\n", i + history_base, list[i]->line);
-
-        return 1;
+    default:
+        break;
     }
 
     return 0;
@@ -106,45 +119,10 @@ void change_io_fd(command_t *cmd, pipe_context_t *pipeline)
 }
 
 // exectue single command
-int execute_command(command_t *cmd, context_t *context, pipe_context_t *pipeline)
+pid_t execute_command(command_t *cmd, context_t *context, pipe_context_t *pipeline)
 {
-    // todo: fix pipeline
-    int old_in = dup(STDIN_FILENO);
-    int old_out = dup(STDOUT_FILENO);
-    int old_err = dup(STDERR_FILENO);
-    change_io_fd(cmd, pipeline);
-    int is_builtin = execute_if_builtin(cmd, context);
-    dup2(old_in, STDIN_FILENO);
-    dup2(old_out, STDOUT_FILENO);
-    dup2(old_err, STDERR_FILENO);
-    close(old_in);
-    close(old_out);
-    close(old_err);
-    if(is_builtin)
-        return 0;
+    int builtin_id = execute_if_builtin(cmd, context);
 
-    pid_t pid = fork();
-    if(pid < 0)
-    {
-        perror("fork failed");
-        return 1;
-    }
-
-    if(pid == 0)
-    {
-        change_io_fd(cmd, pipeline);
-        execvp(cmd->args[0], cmd->args);
-        perror("exec failed");
-        exit(-255);
-    }
-
-    int status;
-    waitpid(pid, &status, 0);
-    return WEXITSTATUS(status);
-}
-
-pid_t execute_command_1(command_t *cmd, context_t *context, pipe_context_t *pipeline)
-{
     pid_t pid = fork();
     if(pid < 0)
     {
@@ -155,7 +133,10 @@ pid_t execute_command_1(command_t *cmd, context_t *context, pipe_context_t *pipe
     if(pid == 0)
     {
         change_io_fd(cmd, pipeline);
-        execvp(cmd->args[0], cmd->args);
+        if(builtin_id)
+            exit(execute_builtin_bottom_half(builtin_id, cmd, context));
+        else
+            execvp(cmd->args[0], cmd->args);
         perror("exec failed");
         exit(-255);
     }
@@ -196,7 +177,7 @@ int execute_pipeline(command_t **head, context_t *context)
         pipeline.fd_in = prev_fd;
         pipeline.pipe_out = is_not_last;
         pipeline.fd_out = pipe_fd[1];
-        pid_t pid = execute_command_1(cmd, context, &pipeline);
+        pid_t pid = execute_command(cmd, context, &pipeline);
         if(pid < 0)
             return pid;
 

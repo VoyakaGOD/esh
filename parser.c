@@ -1,4 +1,3 @@
-
 int is_separator_token(token_type_t type)
 {
     return (type == T_PIPE) ||

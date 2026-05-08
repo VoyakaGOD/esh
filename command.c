@@ -36,7 +36,7 @@ int execute_if_builtin(command_t *cmd, context_t *context)
     if(strcmp(cmd->args[0], "exit") == 0)
     {
         write_history(context->history_path);
-        printf("exit");
+        printf("exit\n");
         exit(0);
     }
 
@@ -48,6 +48,29 @@ int execute_if_builtin(command_t *cmd, context_t *context)
 
     if(strcmp(cmd->args[0], "estory") == 0)
         return 2;
+
+    if(strcmp(cmd->args[0], "set") == 0)
+    {
+        if(!cmd->args[1])
+        {
+            printf("You should specify name of variable\n");
+            return -1;
+        }
+        if(cmd->args[2])
+            setenv(cmd->args[1], cmd->args[2], 1);
+        return 3;
+    }
+
+    if(strcmp(cmd->args[0], "unset") == 0)
+    {
+        if(!cmd->args[1])
+        {
+            printf("You should specify name of variable\n");
+            return -1;
+        }
+        unsetenv(cmd->args[1]);
+        return 4;
+    }
 
     return 0;
 }

@@ -11,10 +11,12 @@
 #define ESH_HISTORY_FILE ".esh_history"
 #define ESH_PROMPT_EXTRA_LEN 128
 #define ESH_MAX_PIPELINE_LEN 64
+#define ESH_MAX_WORD_LEN 1024
 
 #include "lexer.c"
 #include "command.c"
 #include "parser.c"
+#include "substitutions.c"
 
 volatile sig_atomic_t sigint_received = 0;
 
@@ -90,6 +92,7 @@ int main()
 
         tokens = tokenize_input(input);
         expand_tilde(tokens);
+        expand_variables(tokens);
         sequence = parse_commands(tokens);
         if(context.debug_mode)
         {

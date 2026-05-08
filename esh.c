@@ -16,6 +16,24 @@
 #include "command.c"
 #include "parser.c"
 
+volatile sig_atomic_t sigint_received = 0;
+
+void sigint_handler(int sig)
+{
+    sigint_received = 1;
+}
+
+int event_hook(void)
+{
+    if(sigint_received)
+    {
+        rl_replace_line("", 0);
+        rl_done = 1;
+    }
+
+    return 0;
+}
+
 int main()
 {
     char *input = NULL;
@@ -39,6 +57,10 @@ int main()
     read_history(context.history_path);
     stifle_history(ESH_HISTORY_LIMIT);
 
+    rl_event_hook = event_hook;
+    signal(SIGINT, sigint_handler);
+    signal(SIGQUIT, SIG_IGN);
+
     while(1)
     {
         free(context.cwd);
@@ -58,6 +80,7 @@ int main()
             context.debug_mode ? ">" : ""
         );
 
+        sigint_received = 0;
         input = readline(context.prompt);
         if(!input)
         {
@@ -82,6 +105,7 @@ int main()
 
         execute_sequence(sequence, &context);
         context.counter++;
+        fflush(stdout);
 
         release_commands(sequence);
         release_tokens(tokens);

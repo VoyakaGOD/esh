@@ -36,6 +36,7 @@ int execute_if_builtin(command_t *cmd, context_t *context)
     if(strcmp(cmd->args[0], "exit") == 0)
     {
         write_history(context->history_path);
+        printf("exit");
         exit(0);
     }
 
@@ -151,13 +152,17 @@ pid_t execute_command(command_t *cmd, context_t *context, pipe_context_t *pipeli
 
 int execute_pipeline(command_t **head, context_t *context)
 {
+    int status = 0;
     command_t *cmd = *head;
     pipe_context_t pipeline;
     pipeline.pipe_in = 0;
     pipeline.pipe_out = 0;
 
     if(cmd->separator != T_PIPE)
-        return execute_command(cmd, context, &pipeline);
+    {
+        waitpid(execute_command(cmd, context, &pipeline), &status, 0);
+        return WEXITSTATUS(status);
+    }
 
     int prev_fd = STDIN_FILENO;
     pid_t pids[ESH_MAX_PIPELINE_LEN];
@@ -192,7 +197,6 @@ int execute_pipeline(command_t **head, context_t *context)
 
     *head = cmd;
 
-    int status;
     for (int i = 0; i < pid_count; i++)
         waitpid(pids[i], &status, 0);
 
